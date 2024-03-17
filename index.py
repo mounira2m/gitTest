@@ -11,3 +11,5 @@ def main():
     print(subtract(10, 5))
 
 main()
+
+print("=== end version 1.0 ===")
