@@ -13,3 +13,8 @@ def main():
 main()
 
 print("=== end version 1.0 ===")
+
+print("this is a diff")
+print("this is a diff")
+print("this is a diff")
+print("this is a diff")
