@@ -9,3 +9,7 @@ def div(a, b):
 a = 8
 b = 4
 print(a, "divided by", b, "is", div(a, b))
+
+print("End of program")
+
+# succesfully modified program to handle division by zero
