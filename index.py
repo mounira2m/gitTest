@@ -23,3 +23,7 @@ print("this is a diff")
 print("i'm going to merge and see what happens in main branch")
 
 print("this is part of the main branch")
+
+print("added new line in testing branch and than merge it to main branch")
+
+print("=== end version 1.1 ===")
