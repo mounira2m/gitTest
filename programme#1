@@ -1,0 +1,261 @@
+.data
+msg:		.asciiz "entrer un entier de 1 a 16 :  "
+ligneMat:	.asciiz " entrer nombre de lignes de la matrice : "
+colMat:		.asciiz " entrer nombre de colonnes de la matrice : "
+n: 		.word 0 # nombre de lignes
+m: 		.word 0	# nombre de colones
+nbElem:		.word 0	# taille de matrice nxm
+space:	 	.asciiz "\t"
+nLinee:		.asciiz "\n"
+invalidInput: 	.asciiz "valeur invalid ! "
+nonMagique:	.asciiz "Matrice n'est pas magique !"
+magique:	.asciiz "Matrice est magique !"
+.text
+
+main:	
+	la $a1, 0x10040000	#staring address
+
+	jal creerMat
+	
+	lw $t0, m		# t0 = nombre de colonnes
+	la $a1, 0x10040000	# addresse de base
+	li $t1, 0		# t1 = 1 
+	jal afficherMat
+	# saut une ligne
+	li $v0, 4
+	la $a0, nLinee			
+	syscall	
+	# =============== 
+	la $a1, 0x10040000	# reset adresse de base	
+	lw $t3, m		# charger m dans t3
+	li $t1, 0		# intiliase t1 a 0
+	li $t0, 0		# intiliase t0 a 0
+	jal estMagique
+	
+	# terminer le programme
+	li $v0, 10	
+	syscall
+# ========================== create matrix ==================================	
+creerMat:
+	move $t3, $ra	# sauvegarde l'adresse de $ra pour revenir a jal creerMat
+	# demander a l'utilisateur de renter le nombre de lignes
+	la $a0, ligneMat 
+	li $v0, 4
+	syscall
+	
+	# lire n
+	li $v0, 5
+	syscall
+	sw $v0, n	# n = nombre de lignes rentre par l'utilsiateur
+	
+	# demander a l'utilisateur de renter le nombre de colonnes
+	la $a0, colMat 
+	li $v0, 4
+	syscall
+	
+	# lire m
+	li $v0, 5
+	syscall
+	sw $v0, m	# m = nombre de colonnes rentre par l'utilsiateur
+	
+	# cahrger les valeurs n et m dans les registres $s0 et $s1
+	lw $s0, n
+	lw $s1, m
+	
+	# multiplier n x m et stocker dans le registre tempo $t0
+	mul $s2, $s0, $s1	# $s2 = $s0 x $s1
+	sw $s2, nbElem
+	
+	lw $t0, nbElem	# t0 = nbElem tq: nbElem = nxm
+	# initialise un compteur
+	li $t1, 0 	# t1 initialiser a 0
+
+
+loop:
+	beq $t0, $t1, endloop
+	# demander a l'utilisateur de renter un entier
+	la $a0, msg 
+	li $v0, 4
+	syscall
+	# lire l'entree 
+	li $v0, 5		#  // lentier est stocker dans $v0 //
+	syscall
+	
+	blt $v0, 1, invalid	# si valeur rentre inf a 1 recommence
+	bgt $v0, 16, invalid	# si valeur rentre sup a 16 recommence
+	
+	la $a2, 0x10040000	# charger l'adresse de base dans $a2
+	addi $t4, $0, 0		# initialise le registre t4 a 0 pour traquer le nombre d'elem verifié
+	jal valid		# verifie si l'element valid
+	
+	sw $v0, 0($a1)		# stocker la valeur rentre dans ($a1 + t1*4) 
+	add $a1, $a1, 4		# a1 += 4
+	add $t1, $t1, 1		# t1 += 1
+	j loop
+	
+endloop:
+	move $ra, $t3
+	jr $ra
+
+
+valid: 
+	lw $t5, 0($a2)		# $a2 est l'adresse de base, $t4
+	beq $v0, $t5, invalid	# si element exist revenir a loop pour redemander une valeur de novueau
+	add $a2, $a2, 4 	# a2 += 4 (adresse suivante)
+	add $t4, $t4, 1		# t4 += 1
+	ble $t4, $t1, valid	# if tous les elem sont pas verifie revenir a valid
+	jr $ra
+
+# ====================================================================================
+
+# ============================== afficher matrice ==================================
+afficherMat: 
+	move $t3, $ra	# sauvegarde l'adresse de $ra pour revenir a jal afficherMat
+loop2:	
+	beq $t1, $t0, nLine	# si nombre de colonne est atteint aller a nLine
+	
+	lw $a0, 0($a1)		# charger les valeurs de matrice
+	li $v0, 1		# afficher la valeur
+	syscall
+	
+	li $v0, 4
+	la $a0, space
+	syscall
+	
+	add $t1, $t1, 1			# t1 += 1
+	add $t2, $t2, 1			# t2 += 1
+	add $a1, $a1, 4	
+	
+	beq $s2, $t2, endloop		# $s2 = t2 = 16 
+	j loop2 		
+	
+nLine:	
+	addi $t1, $0, 0		# t1 = 0
+	li $v0, 4
+	la $a0, nLinee			
+	syscall			
+	j loop2
+	
+# ===========================================================================
+
+invalid :
+	# valeur invalid
+	la $a0, invalidInput 
+	li $v0, 4
+	syscall
+	j loop
+	
+# ============================== matrice Magique ==================================
+
+estMagique:
+	move $t5, $ra	# sauvegarde l'adresse de $ra pour revenir a jal afficherMat
+			# initialise la somme en utilisant les quatre coin et garde la dans registre s
+#	li $t4, 0	# set t4 = 0
+	# somme des 4 coins de la matrice
+	lw $t0, 0($a1)
+	add $t1, $t1, $t0				# t1 += t0[i]
+
+	add $a1, $a1, 12
+	lw $t0, 0($a1)
+	add $t1, $t1, $t0				# t1 += t0[i]
+
+	add $a1, $a1, 36
+	lw $t0, 0($a1)
+	add $t1, $t1, $t0				# t1 += t0[i]
+
+	add $a1, $a1, 12
+	lw $t0, 0($a1)
+	add $t1, $t1, $t0
+	
+	move $s3, $t1					# s3 = sum = t1
+	li $t1, 0					# t1 = 0 
+
+verifLigne:
+	lw  $t0, 0($a1)			# charger element [i] dans t0
+	add $t1, $t1, $t0		# t1 += t0[i]
+	add $t2, $t2, 1			# t2 += 1 (traquer les iterations pour chaque index)
+	add $a1, $a1, $s1			# a1 += m ( nombre de col ) 
+	ble $t2, $t3, verifLigne	# if i <= nombre de colonnes t3
+	add $t4, $t4, 1			# t4 += 1 
+	jal nouvLigne
+	
+	# si le code arrive a ce stade c-a-d toutes les lignes sont identique
+	lw $t3, n	# update la valeur de $t3 au nombre de ligne
+	la $a1, 0x10040000	#staring address
+	li $t4, 0		# intiliase t4 a 0
+
+verifCol:
+	lw  $t0, 0($a1)			# charger element [i] dans t0
+	add $t1, $t1, $t0		# t1 += t0[i] ( somme est stocker dans t1)
+	add $t2, $t2, 1			# t2 += 1 (traquer les iterations elem par elem)
+	sll $t6, $s1, 2
+	add $a1, $a1, $t6		# a1 += 16 (m * 4byte)
+	ble $t2, $t3, verifCol		# if i <= nombre de lignes
+	add $t4, $t4, 1			# t4 += 1 
+	jal nouvCol
+	
+	# si le code arrive la donc toutes les colonnes sont magique aussi
+	
+	lw $t3, m		# update la valeur de $t3 au nombre de colones
+	la $a1, 0x10040000	# staring address
+	li $t4, 0		# intiliase t4 a 0
+	add $t7, $t3, 1		# initialise un registre a une valeur de 
+	sll $t7, $t7, 2		# ... (m+1)*4 pour traquer les adresses des elements de la diagonale 	
+	
+verifDiagonal:
+	lw  $t0, 0($a1)			# charger element [i] dans t0
+	add $t1, $t1, $t0		# t1 += t0[i] ( somme est stocker dans t1)
+	add $t2, $t2, 1			# t2 += 1 (traquer les iterations elem par elem)
+	add $a1, $a1, $t7		# a1 +=  $t7
+	ble $t2, $t3, verifDiagonal	# if i <= nombre d'elem dans la diagonale
+	add $t4, $t4, 1			# t4 += 1 
+	jal nouvDiag
+	
+	# si le code arrive la donc toutes les colonnes sont magique aussi
+	# affiche le message matrice magique et quitte
+	la $a0, magique
+	li $v0, 4
+	syscall
+	
+	move $ra, $t5		# charger l'adresse de t5 dans ra pour revenir a main et terminer le programme
+	jr $ra
+
+
+
+nouvLigne:
+	li  $t2, 0				# intiliase t2 a 0
+	bne $t1, $s3,pasMagique		# si somme de i elem d'une ligne != sum quit avec message pas magique
+	li $t1, 0					# t1 = 0
+	ble $t4, $s0 verifLigne	# verifie si nous avons verifier toutes les lignes
+	jr  $ra
+
+nouvCol:
+	la  $a1, 0x10040000		#staring address
+	sll $t6, $t4, 2 		# t4 x 4 a chaque iteration
+	add $a1, $a1, $t6		# adresse de base + t4 * 4 pour verifier la prochaine colonne 
+	li  $t2, 0			# intiliase t2 a 0
+	bne $t1, $s3,pasMagique		# si somme de j elem d'une colonne != sum quit avec message pas magique
+	li $t1, 0					# t1 = 0
+	ble $t4, $s1, verifCol		# s'il reste de colonne á verifié loop sinon continue
+	jr  $ra
+
+nouvDiag:
+	li $t7, 12			# initiliase t7 a 0
+	la  $a1, 0x10040000		#staring address
+	add $a1, $a1, $t7		# adresse de base + t4 * 4 pour verifier la prochaine colonne 
+	li  $t2, 0			# intiliase t2 a 0
+	bne $t1, $s3,pasMagique		# si somme de j elem d'une colonne != sum quit avec message pas magique
+	li $t1, 0					# t1 = 0
+	ble $t4, 2, verifDiagonal	# 2 diagonal
+	jr  $ra			
+	
+
+pasMagique: 
+	
+	# imprime message pas magique et quite le processus de verification des sommes
+	la $a0, nonMagique
+	li $v0, 4
+	syscall
+	move $ra, $t5		# charger l'adresse de t5 dans ra pour revenir a main et terminer le programme
+	jr $ra
+# ===========================================================================
